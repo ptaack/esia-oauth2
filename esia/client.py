@@ -8,9 +8,8 @@ import os
 import os.path
 import uuid
 
-from ConfigParser import RawConfigParser
-
-from urllib import quote_plus, urlencode
+from configparser import RawConfigParser
+from urllib.parse import quote_plus, urlencode
 
 import jwt
 from jwt.exceptions import InvalidTokenError
@@ -84,7 +83,7 @@ class EsiaConfig(EsiaSettings):
         """
         if os.path.isfile(config_file) and os.access(config_file, os.R_OK):
             conf = RawConfigParser()
-            conf.read(config_file)
+            conf.read(config_file, encoding='utf-8')
             base_dir = os.path.dirname(config_file)
 
             kwargs = {
@@ -260,7 +259,7 @@ class EsiaAuth(object):
         redirect = (redirect_uri or self.settings.logout_redirect_uri)
         if redirect:
             logout_url += '&redirect_url={redirect}'.format(
-                redirect=quote_plus(redirect))
+                redirect=redirect)
 
         return logout_url
 

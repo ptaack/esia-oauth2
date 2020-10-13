@@ -16,6 +16,8 @@ import requests
 
 from .exceptions import CryptoBackendError, HttpError, IncorrectJsonError
 
+URL_SAFE_REPLACE = [('+', '-'), ('/', '_'), ('\n', '')]
+
 
 def make_request(url, method='GET', headers=None, data=None, verify=True):
     """
@@ -121,9 +123,8 @@ def csp_sign(thumbprint, password, data):
     destination_file.close()
     destination_path = destination_file.name
 
-    cmd = (
-        "cryptcp -sign -nochain -der -nocert -pin {password} "
-        "{f_in} {f_out} -thumbprint {thumbprint} 2>&1 >/dev/null")
+    cmd = "cryptcp -sign '{f_in}' '{f_out}' -thumbprint '{thumbprint}' " \
+          "-strict -cert -detached -pin {password} > /dev/null"
     os.system(cmd.format(
         password=password,
         f_in=source_path,
@@ -153,16 +154,19 @@ def sign_params(params, settings, backend='csp'):
     plaintext = params.get('scope', '') + params.get('timestamp', '') + \
         params.get('client_id', '') + params.get('state', '')
     if backend == 'csp':
-        raw_client_secret = csp_sign(
+        base64_client_secret = csp_sign(
             settings.csp_cert_thumbprint,
             settings.csp_container_pwd, plaintext)
+        for k, v in URL_SAFE_REPLACE:
+            base64_client_secret = base64_client_secret.replace(k, v)
     else:
         raw_client_secret = smime_sign(
             settings.certificate_file, settings.private_key_file,
             plaintext, backend)
+        base64_client_secret = base64.urlsafe_b64encode(
+            raw_client_secret).decode('utf-8')
     params.update(
-        client_secret=base64.urlsafe_b64encode(
-            raw_client_secret).decode('utf-8'),
+        client_secret=base64_client_secret,
     )
     return params
 
